@@ -15,15 +15,13 @@ export async function extractInstagram(url) {
 
   const html = await response.text();
 
-  const secureVideo =
-    html.match(
-      /<meta[^>]+property=["']og:video:secure_url["'][^>]+content=["']([^"']+)["']/i
-    )?.[1];
+  const secureVideo = html.match(
+    /<meta[^>]+property=["']og:video:secure_url["'][^>]+content=["']([^"']+)["']/i
+  )?.[1];
 
-  const normalVideo =
-    html.match(
-      /<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i
-    )?.[1];
+  const normalVideo = html.match(
+    /<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i
+  )?.[1];
 
   const video = secureVideo || normalVideo;
 
