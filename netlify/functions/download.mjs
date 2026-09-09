@@ -1,27 +1,21 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type"
-};
-
-function json(data, status = 200) {
-  return Response.json(data, {
-    status,
-    headers: corsHeaders
-  });
-}
+import { extractInstagram } from "../../src/instagram.js";
+import {
+  validateInstagramUrl,
+  validateType
+} from "../../src/validator.js";
+import {
+  jsonResponse,
+  corsResponse
+} from "../../src/response.js";
 
 export default async (request) => {
   // CORS preflight
   if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return corsResponse();
   }
 
   if (request.method !== "GET") {
-    return json(
+    return jsonResponse(
       {
         success: false,
         error: "Method tidak diizinkan"
@@ -36,109 +30,60 @@ export default async (request) => {
     const instagramUrl = searchParams.get("url");
     const type = searchParams.get("type") || "normal";
 
-    if (!instagramUrl) {
-      return json(
+    // Validasi URL
+    const urlCheck = validateInstagramUrl(instagramUrl);
+
+    if (!urlCheck.valid) {
+      return jsonResponse(
         {
           success: false,
-          error: "Parameter url wajib diisi"
+          error: urlCheck.error
         },
         400
       );
     }
 
-    if (!["normal", "hd", "mp3"].includes(type)) {
-      return json(
+    // Validasi type
+    const typeCheck = validateType(type);
+
+    if (!typeCheck.valid) {
+      return jsonResponse(
         {
           success: false,
-          error: "type harus normal, hd, atau mp3"
+          error: typeCheck.error
         },
         400
       );
     }
 
-    const parsed = new URL(instagramUrl);
+    // Extract media
+    const media = await extractInstagram(urlCheck.url);
 
-    if (
-      parsed.protocol !== "https:" ||
-      (parsed.hostname !== "instagram.com" &&
-        !parsed.hostname.endsWith(".instagram.com"))
-    ) {
-      return json(
-        {
-          success: false,
-          error: "URL Instagram tidak valid"
-        },
-        400
-      );
-    }
-
-    const response = await fetch(instagramUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36",
-        "Accept":
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9"
-      }
-    });
-
-    if (!response.ok) {
-      return json(
-        {
-          success: false,
-          error: "Gagal mengambil halaman Instagram",
-          status: response.status
-        },
-        502
-      );
-    }
-
-    const html = await response.text();
-
-    const secureVideoMatch = html.match(
-      /<meta[^>]+property=["']og:video:secure_url["'][^>]+content=["']([^"']+)["']/i
-    );
-
-    const videoMatch = html.match(
-      /<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i
-    );
-
-    const videoUrl = secureVideoMatch?.[1] || videoMatch?.[1];
-
-    if (!videoUrl) {
-      return json(
-        {
-          success: false,
-          error: "Media video tidak ditemukan"
-        },
-        404
-      );
-    }
-
-    const decodedVideoUrl = videoUrl
-      .replaceAll("&amp;", "&")
-      .replaceAll("\\/", "/");
-
+    // MP3 belum kita proses
     if (type === "mp3") {
-      return json(
+      return jsonResponse(
         {
           success: false,
-          error: "MP3 belum ditambahkan ke extractor."
+          error: "MP3 belum tersedia. Extractor audio akan dibuat pada tahap berikutnya."
         },
         501
       );
     }
 
-    return json({
+    return jsonResponse({
       success: true,
       type,
-      download_url: decodedVideoUrl
+      quality: type === "hd" ? "source" : "normal",
+      download_url: media.video
     });
+
   } catch (error) {
-    return json(
+    console.error(error);
+
+    return jsonResponse(
       {
         success: false,
-        error: "Internal server error"
+        error: error.message || "Gagal memproses video"
       },
       500
     );
