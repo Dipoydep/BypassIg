@@ -15,13 +15,17 @@ export async function extractInstagram(url) {
 
   const html = await response.text();
 
-  const video =
+  const secureVideo =
     html.match(
       /<meta[^>]+property=["']og:video:secure_url["'][^>]+content=["']([^"']+)["']/i
-    )?.[1] ||
+    )?.[1];
+
+  const normalVideo =
     html.match(
       /<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i
     )?.[1];
+
+  const video = secureVideo || normalVideo;
 
   if (!video) {
     throw new Error("Video publik tidak ditemukan");
