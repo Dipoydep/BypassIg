@@ -1,10 +1,2 @@
 [build]
   functions = "netlify/functions"
-
-[functions]
-  node_bundler = "esbuild"
-
-[[redirects]]
-  from = "/api/download"
-  to = "/.netlify/functions/download"
-  status = 200
